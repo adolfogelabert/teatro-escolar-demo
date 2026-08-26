@@ -1,0 +1,2 @@
+# Redirige siempre a index.html (compatibilidad con hosting que use .htaccess)
+DirectoryIndex index.html
