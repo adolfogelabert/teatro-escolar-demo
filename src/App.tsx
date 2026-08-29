@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   PresentationId,
   Seat,
   SeatStatus,
-  PurchaseReceipt,
-  TheaterInventoryByPresentation,
+  Reservation,
   SeatInventory,
+  SeatInventoryEntry,
+  TheaterInventoryByPresentation,
 } from './types';
 import {
   DEFAULT_TICKET_PRICE,
@@ -19,23 +20,32 @@ import {
   createInitialInventory,
   STORAGE_PRICE_KEY,
 } from './data/eventsData';
+import {
+  loadReservations,
+  createReservation,
+  confirmReservation,
+  cleanupExpiredReservations,
+  syncInventoryWithReservations,
+  formatRemaining,
+} from './data/reservations';
 import { Header } from './components/Header';
 import { TheaterMap } from './components/TheaterMap';
 import { CartSidebar } from './components/CartSidebar';
-import { DaviviendaModal } from './components/DaviviendaModal';
+import { ReservationModal } from './components/ReservationModal';
 import { TicketReceiptModal } from './components/TicketReceiptModal';
 import { AdminPanel } from './components/AdminPanel';
 import { InfoModal } from './components/InfoModal';
 import {
   Sparkles,
-  ShieldCheck,
   Calendar,
   Clock,
-  MapPin,
   HelpCircle,
   Settings,
-  Flame,
+  Hourglass,
+  Building2,
 } from 'lucide-react';
+
+const RESERVATION_CLEANUP_INTERVAL_MS = 15 * 1000;
 
 export default function App() {
   // 1. Variable global de precio por boleta (modificable)
@@ -48,32 +58,32 @@ export default function App() {
     }
   });
 
-  // 2. Presentación seleccionada (Preescolar, Primaria, Bachillerato)
+  // 2. Presentación seleccionada
   const [currentPresentationId, setCurrentPresentationId] =
     useState<PresentationId>('primaria');
 
-  // 3. Inventario independiente por cada presentación
+  // 3. Reservas persistidas
+  const [reservations, setReservations] = useState<Reservation[]>(() => loadReservations());
+
+  // 4. Inventario por presentación (formato entry con status/expiresAt/reservationId)
   const [inventories, setInventories] =
     useState<TheaterInventoryByPresentation>(() => loadInventories(ticketPrice));
 
-  // 4. Asientos seleccionados actualmente para compra
+  // 5. Asientos seleccionados (carrito activo)
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
 
-  // 5. Modales y estados de UI
-  const [isDaviviendaOpen, setIsDaviviendaOpen] = useState<boolean>(false);
-  const [activeReceipt, setActiveReceipt] = useState<PurchaseReceipt | null>(
-    null
-  );
+  // 6. Estado UI (modales + reloj global)
+  const [isReservationOpen, setIsReservationOpen] = useState<boolean>(false);
+  const [activeReservation, setActiveReservation] = useState<Reservation | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
+  const [now, setNow] = useState<number>(Date.now());
 
-  // Generación de la estructura del teatro completa
   const allSeats = useMemo(
     () => generateTheaterSeats(ticketPrice),
     [ticketPrice]
   );
 
-  // Presentación activa
   const currentPresentation = useMemo(
     () =>
       PRESENTATIONS.find((p) => p.id === currentPresentationId) ||
@@ -81,18 +91,129 @@ export default function App() {
     [currentPresentationId]
   );
 
-  // Inventario de la presentación activa
-  const currentInventory = useMemo(
-    () => inventories[currentPresentationId] || {},
-    [inventories, currentPresentationId]
+  const resolveSeatStatus = useCallback(
+    (seat: Seat, inventory: SeatInventory): SeatStatus => {
+      const entry = inventory[seat.id];
+      if (entry) return entry.status;
+      return seat.defaultBlocked ? 'bloqueado' : 'disponible';
+    },
+    []
   );
 
-  // Lista de objetos Seat seleccionados
+  // Inventario efectivo: combina lo persistido con las reservas activas.
+  const effectiveInventories = useMemo(() => {
+    const next: TheaterInventoryByPresentation = {
+      preescolar: {},
+      primaria: {},
+      bachillerato: {},
+    };
+    (Object.keys(inventories) as PresentationId[]).forEach((pid) => {
+      next[pid] = syncInventoryWithReservations(inventories[pid] || {}, reservations, now);
+    });
+    return next;
+  }, [inventories, reservations, now]);
+
+  const currentInventory = useMemo(
+    () => effectiveInventories[currentPresentationId] || {},
+    [effectiveInventories, currentPresentationId]
+  );
+
   const selectedSeats = useMemo(() => {
     return allSeats.filter((seat) => selectedSeatIds.includes(seat.id));
   }, [allSeats, selectedSeatIds]);
 
-  // Guardar cambios de precio en localStorage
+  // Tick de 1s para refrescar "now"
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  // Limpieza inicial (sólo una vez)
+  const initialCleanupDoneRef = useRef(false);
+  useEffect(() => {
+    if (initialCleanupDoneRef.current) return;
+    initialCleanupDoneRef.current = true;
+    const current = loadReservations();
+    const { updatedReservations, seatsToRelease } = cleanupExpiredReservations(current);
+    if (seatsToRelease.length > 0) {
+      setInventories((prev) => {
+        const updated = { ...prev };
+        (Object.keys(updated) as PresentationId[]).forEach((pid) => {
+          const inv = { ...updated[pid] };
+          for (const seatId of seatsToRelease) {
+            if (inv[seatId] && inv[seatId].status === 'reservado') {
+              inv[seatId] = { status: 'disponible' };
+            }
+          }
+          updated[pid] = inv;
+          saveInventory(pid, updated[pid]);
+        });
+        return updated;
+      });
+    }
+    if (
+      updatedReservations.length !== current.length ||
+      updatedReservations.some((r, i) => r.status !== current[i]?.status)
+    ) {
+      setReservations(updatedReservations);
+    }
+  }, []);
+
+  // Auto-cleanup periódico
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const current = loadReservations();
+      const { expiredIds, seatsToRelease, updatedReservations } =
+        cleanupExpiredReservations(current);
+      if (expiredIds.length === 0) return;
+      setInventories((prev) => {
+        const updated = { ...prev };
+        (Object.keys(updated) as PresentationId[]).forEach((pid) => {
+          const inv = { ...updated[pid] };
+          let touched = false;
+          for (const seatId of seatsToRelease) {
+            if (inv[seatId] && inv[seatId].status === 'reservado') {
+              inv[seatId] = { status: 'disponible' };
+              touched = true;
+            }
+          }
+          if (touched) {
+            updated[pid] = inv;
+            saveInventory(pid, updated[pid]);
+          }
+        });
+        return updated;
+      });
+      setReservations(updatedReservations);
+    }, RESERVATION_CLEANUP_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  // Helpers inventario
+  const updateInventorySeat = useCallback(
+    (pid: PresentationId, seatId: string, entry: SeatInventoryEntry) => {
+      setInventories((prev) => {
+        const updated = { ...(prev[pid] || {}), [seatId]: entry };
+        const nextState = { ...prev, [pid]: updated };
+        saveInventory(pid, updated);
+        return nextState;
+      });
+    },
+    []
+  );
+
+  const updateManySeats = useCallback(
+    (pid: PresentationId, entries: Record<string, SeatInventoryEntry>) => {
+      setInventories((prev) => {
+        const updated = { ...(prev[pid] || {}), ...entries };
+        const nextState = { ...prev, [pid]: updated };
+        saveInventory(pid, updated);
+        return nextState;
+      });
+    },
+    []
+  );
+
   const handleUpdateTicketPrice = (newPrice: number) => {
     setTicketPrice(newPrice);
     try {
@@ -102,164 +223,150 @@ export default function App() {
     }
   };
 
-  // Cambio de presentación (limpia selección pendiente para evitar confusiones entre funciones)
   const handleSelectPresentation = (id: PresentationId) => {
     setCurrentPresentationId(id);
     setSelectedSeatIds([]);
   };
 
-  // Manejador del clic en un asiento del teatro:
-  // - Si está disponible -> pasa a seleccionado
-  // - Si está seleccionado -> se deselecciona (vuelve a disponible)
-  // - Si está ocupado o bloqueado -> no responde
   const handleSeatClick = (seat: Seat) => {
-    const status: SeatStatus =
-      currentInventory[seat.id] ||
-      (seat.defaultBlocked ? 'bloqueado' : 'disponible');
+    const status = resolveSeatStatus(seat, currentInventory);
 
-    if (status === 'ocupado' || status === 'bloqueado') {
-      return; // No responde al clic
+    if (status === 'ocupado' || status === 'bloqueado' || status === 'reservado') {
+      return;
     }
 
     if (selectedSeatIds.includes(seat.id)) {
-      // Deseleccionar
       setSelectedSeatIds((prev) => prev.filter((id) => id !== seat.id));
-      const updatedInv = { ...currentInventory, [seat.id]: 'disponible' as SeatStatus };
-      setInventories((prev) => ({
-        ...prev,
-        [currentPresentationId]: updatedInv,
-      }));
-      saveInventory(currentPresentationId, updatedInv);
+      updateInventorySeat(currentPresentationId, seat.id, { status: 'disponible' });
     } else {
-      // Seleccionar
       setSelectedSeatIds((prev) => [...prev, seat.id]);
-      const updatedInv = { ...currentInventory, [seat.id]: 'seleccionado' as SeatStatus };
-      setInventories((prev) => ({
-        ...prev,
-        [currentPresentationId]: updatedInv,
-      }));
-      saveInventory(currentPresentationId, updatedInv);
+      updateInventorySeat(currentPresentationId, seat.id, { status: 'seleccionado' });
     }
   };
 
-  // Remover asiento desde el carrito
   const handleRemoveSelectedSeat = (seatId: string) => {
     setSelectedSeatIds((prev) => prev.filter((id) => id !== seatId));
-    const updatedInv = { ...currentInventory, [seatId]: 'disponible' as SeatStatus };
-    setInventories((prev) => ({
-      ...prev,
-      [currentPresentationId]: updatedInv,
-    }));
-    saveInventory(currentPresentationId, updatedInv);
+    updateInventorySeat(currentPresentationId, seatId, { status: 'disponible' });
   };
 
-  // Limpiar todos los seleccionados
   const handleClearSelection = () => {
-    const updatedInv = { ...currentInventory };
+    const entries: Record<string, SeatInventoryEntry> = {};
     selectedSeatIds.forEach((id) => {
-      updatedInv[id] = 'disponible';
+      entries[id] = { status: 'disponible' };
     });
     setSelectedSeatIds([]);
-    setInventories((prev) => ({
-      ...prev,
-      [currentPresentationId]: updatedInv,
-    }));
-    saveInventory(currentPresentationId, updatedInv);
+    updateManySeats(currentPresentationId, entries);
   };
 
-  // Confirmación exitosa de pago Davivienda:
-  // Cambia todos los asientos seleccionados a "ocupado/pagado" permanentemente
-  const handlePaymentSuccess = (receipt: PurchaseReceipt) => {
-    const updatedInv = { ...currentInventory };
-    receipt.seats.forEach((seat) => {
-      updatedInv[seat.id] = 'ocupado';
-    });
+  const handleReservationCreated = useCallback(
+    (reservation: Reservation) => {
+      const entries: Record<string, SeatInventoryEntry> = {};
+      reservation.seats.forEach((seat) => {
+        entries[seat.id] = {
+          status: 'reservado',
+          reservationExpiresAt: reservation.expiresAtMs,
+          reservationId: reservation.id,
+        };
+      });
+      updateManySeats(currentPresentationId, entries);
 
-    setInventories((prev) => ({
-      ...prev,
-      [currentPresentationId]: updatedInv,
-    }));
-    saveInventory(currentPresentationId, updatedInv);
+      const existing = loadReservations();
+      setReservations(existing);
 
-    setSelectedSeatIds([]);
-    setIsDaviviendaOpen(false);
-    setActiveReceipt(receipt);
-  };
+      setSelectedSeatIds([]);
+      setIsReservationOpen(false);
+      setActiveReservation(reservation);
+    },
+    [currentPresentationId, updateManySeats]
+  );
 
-  // ========================================================
-  // ACCIONES ADMINISTRATIVAS (PANEL ADMIN)
-  // ========================================================
+  const handleConfirmPaymentReceived = useCallback(
+    (reservationId: string) => {
+      confirmReservation(reservationId);
+      const reservationsNow = loadReservations();
+      setReservations(reservationsNow);
+
+      const updated = reservationsNow.find((r) => r.id === reservationId);
+      if (!updated) return;
+
+      const entries: Record<string, SeatInventoryEntry> = {};
+      updated.seats.forEach((seat) => {
+        entries[seat.id] = { status: 'ocupado' };
+      });
+      updateManySeats(currentPresentationId, entries);
+      setActiveReservation({ ...updated, status: 'confirmada' });
+    },
+    [currentPresentationId, updateManySeats]
+  );
+
   const handleUpdateSeatStatus = (seatId: string, newStatus: SeatStatus) => {
-    const updatedInv = { ...currentInventory, [seatId]: newStatus };
-    setInventories((prev) => ({
-      ...prev,
-      [currentPresentationId]: updatedInv,
-    }));
-    saveInventory(currentPresentationId, updatedInv);
+    updateInventorySeat(currentPresentationId, seatId, {
+      status: newStatus,
+      reservationExpiresAt: undefined,
+      reservationId: undefined,
+    });
   };
 
   const handleBatchUpdateRow = (rowLetter: string, newStatus: SeatStatus) => {
-    const updatedInv = { ...currentInventory };
+    const entries: Record<string, SeatInventoryEntry> = {};
     allSeats
       .filter((s) => s.row === rowLetter)
       .forEach((s) => {
-        updatedInv[s.id] = newStatus;
+        entries[s.id] = {
+          status: newStatus,
+          reservationExpiresAt: undefined,
+          reservationId: undefined,
+        };
       });
-
-    setInventories((prev) => ({
-      ...prev,
-      [currentPresentationId]: updatedInv,
-    }));
-    saveInventory(currentPresentationId, updatedInv);
+    updateManySeats(currentPresentationId, entries);
   };
 
   const handleBatchUpdateSection = (sectionId: string, newStatus: SeatStatus) => {
-    const updatedInv = { ...currentInventory };
+    const entries: Record<string, SeatInventoryEntry> = {};
     allSeats
       .filter((s) => s.sectionId === sectionId)
       .forEach((s) => {
-        updatedInv[s.id] = newStatus;
+        entries[s.id] = {
+          status: newStatus,
+          reservationExpiresAt: undefined,
+          reservationId: undefined,
+        };
       });
-
-    setInventories((prev) => ({
-      ...prev,
-      [currentPresentationId]: updatedInv,
-    }));
-    saveInventory(currentPresentationId, updatedInv);
+    updateManySeats(currentPresentationId, entries);
   };
 
   const handleResetPresentation = (presentationId: PresentationId) => {
     const initial = createInitialInventory(presentationId, ticketPrice);
-    setInventories((prev) => ({
-      ...prev,
-      [presentationId]: initial,
-    }));
+    setInventories((prev) => ({ ...prev, [presentationId]: initial }));
     saveInventory(presentationId, initial);
     setSelectedSeatIds([]);
   };
 
   const handleSimulateFullHouse = (presentationId: PresentationId) => {
-    const updatedInv = { ...currentInventory };
+    const entries: Record<string, SeatInventoryEntry> = {};
     allSeats.forEach((seat, idx) => {
       if (seat.defaultBlocked) {
-        updatedInv[seat.id] = 'bloqueado';
+        entries[seat.id] = { status: 'bloqueado' };
       } else {
-        // ~65% ocupados
-        updatedInv[seat.id] = idx % 3 !== 0 ? 'ocupado' : 'disponible';
+        entries[seat.id] = { status: idx % 3 !== 0 ? 'ocupado' : 'disponible' };
       }
     });
-
-    setInventories((prev) => ({
-      ...prev,
-      [presentationId]: updatedInv,
-    }));
-    saveInventory(presentationId, updatedInv);
+    updateManySeats(presentationId, entries);
     setSelectedSeatIds([]);
   };
 
+  const soonExpiring = useMemo(() => {
+    return reservations.filter(
+      (r) =>
+        r.status === 'pendiente' &&
+        r.presentationId === currentPresentationId &&
+        r.expiresAtMs - now < 6 * 60 * 60 * 1000 &&
+        r.expiresAtMs > now
+    );
+  }, [reservations, currentPresentationId, now]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* 1. Header institucional y selector de función */}
       <Header
         presentations={PRESENTATIONS}
         currentPresentation={currentPresentation}
@@ -271,9 +378,7 @@ export default function App() {
         onOpenInfo={() => setIsInfoOpen(true)}
       />
 
-      {/* 2. Main Content Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
-        {/* Panel Administrativo (Desplegable) */}
         {isAdminOpen && (
           <AdminPanel
             presentations={PRESENTATIONS}
@@ -282,6 +387,7 @@ export default function App() {
             seats={allSeats}
             inventory={currentInventory}
             ticketPrice={ticketPrice}
+            reservations={reservations}
             onUpdateTicketPrice={handleUpdateTicketPrice}
             onUpdateSeatStatus={handleUpdateSeatStatus}
             onBatchUpdateRow={handleBatchUpdateRow}
@@ -292,14 +398,13 @@ export default function App() {
           />
         )}
 
-        {/* Presentation Context Bar */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-black shrink-0">
               🎭
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-extrabold text-slate-900 text-base sm:text-lg">
                   {currentPresentation.title}
                 </h2>
@@ -316,7 +421,7 @@ export default function App() {
           <div className="flex items-center gap-3 self-end md:self-auto text-xs">
             <div className="text-right">
               <span className="text-[10px] text-slate-400 block font-medium uppercase">
-                Boleta Oficial
+                Precio por boleta
               </span>
               <span className="font-black text-emerald-600 text-sm sm:text-base">
                 {formatCOP(ticketPrice)}
@@ -332,9 +437,37 @@ export default function App() {
           </div>
         </div>
 
-        {/* Layout Grid: Plano del Teatro (Principal) + Carrito de Compra (Lateral) */}
+        {soonExpiring.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-start gap-2">
+              <Hourglass className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-bold text-amber-900">
+                  {soonExpiring.length === 1
+                    ? 'Una reserva está por expirar'
+                    : `${soonExpiring.length} reservas están por expirar`}
+                </p>
+                <p className="text-amber-800 mt-0.5">
+                  Si no se confirma el pago por consignación, los asientos
+                  volverán a estar disponibles automáticamente.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 text-right">
+              {soonExpiring.slice(0, 3).map((r) => (
+                <span
+                  key={r.id}
+                  className="font-mono text-[11px] text-amber-900"
+                >
+                  {r.paymentReference}:{' '}
+                  <strong className="font-bold">{formatRemaining(r.expiresAtMs, now)}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Columna Izquierda / Centro: Plano Real del Teatro */}
           <div className="lg:col-span-8 xl:col-span-9 space-y-4">
             <TheaterMap
               seats={allSeats}
@@ -345,7 +478,6 @@ export default function App() {
             />
           </div>
 
-          {/* Columna Derecha: Resumen de Selección y Pasarela Davivienda */}
           <div className="lg:col-span-4 xl:col-span-3 sticky top-24">
             <CartSidebar
               selectedSeats={selectedSeats}
@@ -353,13 +485,12 @@ export default function App() {
               ticketPrice={ticketPrice}
               onRemoveSeat={handleRemoveSelectedSeat}
               onClearSelection={handleClearSelection}
-              onProceedToPayment={() => setIsDaviviendaOpen(true)}
+              onProceedToPayment={() => setIsReservationOpen(true)}
             />
           </div>
         </div>
       </main>
 
-      {/* 3. Footer Institucional */}
       <footer className="bg-slate-950 text-slate-300 mt-12 py-8 text-xs">
         <div className="max-w-7xl mx-auto px-4 flex flex-col gap-5">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
@@ -367,8 +498,9 @@ export default function App() {
               <p className="font-bold text-white">
                 Colegio Mayor • Sistema de Boletería y Asignación de Teatro Escolar
               </p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Integración oficial con pasarela transaccional Davivienda • Todos los derechos reservados 2026
+              <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 justify-center sm:justify-start">
+                <Building2 className="w-3 h-3 inline" />
+                Reserva por consignación bancaria • Todos los derechos reservados 2026
               </p>
             </div>
 
@@ -450,31 +582,27 @@ export default function App() {
               <p className="font-bold text-slate-400 uppercase tracking-wider">
                 Construido con React + Vite + TypeScript
               </p>
-              <p className="mt-0.5">
-                Demo desplegada automáticamente vía GitHub Pages & GitHub Actions
-              </p>
+              <p className="mt-0.5">Demo • Teatro Escolar 2026</p>
             </div>
           </div>
         </div>
       </footer>
 
-      {/* 4. Modal de Pasarela de Pagos Davivienda */}
-      <DaviviendaModal
-        isOpen={isDaviviendaOpen}
-        onClose={() => setIsDaviviendaOpen(false)}
+      <ReservationModal
+        isOpen={isReservationOpen}
+        onClose={() => setIsReservationOpen(false)}
         selectedSeats={selectedSeats}
         presentation={currentPresentation}
         ticketPrice={ticketPrice}
-        onPaymentSuccess={handlePaymentSuccess}
+        onReservationCreated={handleReservationCreated}
       />
 
-      {/* 5. Modal de Notificación de Compra y Boletas Electrónicas con QR */}
       <TicketReceiptModal
-        receipt={activeReceipt}
-        onClose={() => setActiveReceipt(null)}
+        reservation={activeReservation}
+        onClose={() => setActiveReservation(null)}
+        onConfirmPayment={handleConfirmPaymentReceived}
       />
 
-      {/* 6. Modal de Información y Ayuda */}
       <InfoModal
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}

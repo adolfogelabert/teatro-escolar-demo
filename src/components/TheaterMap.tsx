@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Seat, SeatStatus, SectionType } from '../types';
+import { Seat, SeatStatus, SectionType, SeatInventory } from '../types';
 import { formatCOP } from '../data/theaterData';
 import {
   ZoomIn,
@@ -11,12 +11,13 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  Maximize2
+  Maximize2,
+  Hourglass,
 } from 'lucide-react';
 
 interface TheaterMapProps {
   seats: Seat[];
-  seatStatusMap: Record<string, SeatStatus>;
+  seatStatusMap: SeatInventory;
   onSeatClick: (seat: Seat) => void;
   selectedSeats: Seat[];
   ticketPrice: number;
@@ -39,18 +40,21 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
   const counts = useMemo(() => {
     let disponible = 0;
     let seleccionado = 0;
+    let reservado = 0;
     let ocupado = 0;
     let bloqueado = 0;
 
     seats.forEach((seat) => {
-      const st = seatStatusMap[seat.id] || (seat.defaultBlocked ? 'bloqueado' : 'disponible');
+      const st = seatStatusMap[seat.id]?.status ||
+        (seat.defaultBlocked ? 'bloqueado' : 'disponible');
       if (st === 'disponible') disponible++;
       else if (st === 'seleccionado') seleccionado++;
+      else if (st === 'reservado') reservado++;
       else if (st === 'ocupado') ocupado++;
       else if (st === 'bloqueado') bloqueado++;
     });
 
-    return { disponible, seleccionado, ocupado, bloqueado, total: seats.length };
+    return { disponible, seleccionado, reservado, ocupado, bloqueado, total: seats.length };
   }, [seats, seatStatusMap]);
 
   // Agrupación organizada de asientos para el renderizado fiel
@@ -156,16 +160,13 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
 
   // Renderizador individual de un botón de asiento con paleta vibrante
   const renderSeatButton = (seat: Seat, size: 'sm' | 'md' = 'md') => {
-    const status: SeatStatus = seatStatusMap[seat.id] || (seat.defaultBlocked ? 'bloqueado' : 'disponible');
+    const status: SeatStatus = seatStatusMap[seat.id]?.status ||
+      (seat.defaultBlocked ? 'bloqueado' : 'disponible');
     const isSelected = status === 'seleccionado';
+    const isReserved = status === 'reservado';
     const isOccupied = status === 'ocupado';
     const isBlocked = status === 'bloqueado';
 
-    // Estilos de la paleta vibrante:
-    // Verde: #4CAF50
-    // Amarillo: #FFEB3B (con sombra brillante)
-    // Rojo: #F44336
-    // Gris Oscuro: #757575
     let bgColor = '#4CAF50';
     let textColor = '#ffffff';
     let borderColor = '#388E3C';
@@ -178,6 +179,12 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
       borderColor = '#EAB308';
       customBoxShadow = '0 0 8px #FFEB3B, 0 0 2px #EAB308';
       cursorStyle = 'cursor-pointer scale-110 ring-2 ring-indigo-950 z-10';
+    } else if (isReserved) {
+      bgColor = '#7C3AED';
+      textColor = '#ffffff';
+      borderColor = '#5B21B6';
+      cursorStyle = 'cursor-not-allowed opacity-95';
+      customBoxShadow = '0 0 4px rgba(124, 58, 237, 0.5)';
     } else if (isOccupied) {
       bgColor = '#F44336';
       textColor = '#ffffff';
@@ -195,7 +202,7 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
         key={seat.id}
         id={`seat-${seat.id}`}
         type="button"
-        disabled={isOccupied || isBlocked}
+        disabled={isOccupied || isBlocked || isReserved}
         onClick={() => onSeatClick(seat)}
         onMouseEnter={(e) => handleMouseEnter(seat, e)}
         onMouseLeave={handleMouseLeave}
@@ -353,6 +360,19 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
             </span>
           </div>
 
+          {/* Reservado (consignación pendiente) */}
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center font-bold text-[8px] text-white shadow-2xs"
+              style={{ backgroundColor: '#7C3AED', borderColor: '#5B21B6' }}
+            >
+              <Hourglass className="w-2.5 h-2.5" />
+            </span>
+            <span className="text-slate-700">
+              Reservado (<strong className="text-purple-700 font-bold">{counts.reservado}</strong>)
+            </span>
+          </div>
+
           {/* Ocupado / Pagado */}
           <div className="flex items-center gap-2">
             <span
@@ -362,7 +382,7 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
               ✕
             </span>
             <span className="text-slate-700">
-              Ocupado/Pagado (<strong className="text-rose-700 font-bold">{counts.ocupado}</strong>)
+              Ocupado (<strong className="text-rose-700 font-bold">{counts.ocupado}</strong>)
             </span>
           </div>
 
@@ -760,22 +780,27 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
               <span className="text-[10px] text-slate-400">Precio:</span>
               <span className="font-bold text-emerald-400">{formatCOP(ticketPrice)}</span>
             </div>
-            <div className="text-[10px] font-bold mt-0.5">
-              Estado:{' '}
-              <span
-                className={
-                  (seatStatusMap[hoveredSeat.id] || (hoveredSeat.defaultBlocked ? 'bloqueado' : 'disponible')) === 'disponible'
-                    ? 'text-emerald-400'
-                    : (seatStatusMap[hoveredSeat.id] || 'disponible') === 'seleccionado'
-                    ? 'text-amber-400'
-                    : (seatStatusMap[hoveredSeat.id] || 'disponible') === 'ocupado'
-                    ? 'text-rose-400'
-                    : 'text-stone-400'
-                }
-              >
-                {(seatStatusMap[hoveredSeat.id] || (hoveredSeat.defaultBlocked ? 'bloqueado' : 'disponible')).toUpperCase()}
-              </span>
-            </div>
+            {(() => {
+              const entryStatus: SeatStatus =
+                seatStatusMap[hoveredSeat.id]?.status ||
+                (hoveredSeat.defaultBlocked ? 'bloqueado' : 'disponible');
+              const colorClass =
+                entryStatus === 'disponible'
+                  ? 'text-emerald-400'
+                  : entryStatus === 'seleccionado'
+                  ? 'text-amber-400'
+                  : entryStatus === 'reservado'
+                  ? 'text-purple-400'
+                  : entryStatus === 'ocupado'
+                  ? 'text-rose-400'
+                  : 'text-stone-400';
+              return (
+                <div className="text-[10px] font-bold mt-0.5">
+                  Estado:{' '}
+                  <span className={colorClass}>{entryStatus.toUpperCase()}</span>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

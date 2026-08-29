@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Presentation, PresentationId, Seat, SeatInventory, SeatStatus } from '../types';
+import { Presentation, PresentationId, Seat, SeatInventory, SeatStatus, Reservation } from '../types';
 import { formatCOP } from '../data/theaterData';
+import { formatRemaining } from '../data/reservations';
 import {
   ShieldAlert,
   Settings,
@@ -17,6 +18,8 @@ import {
   Eye,
   Sliders,
   Sparkles,
+  Hourglass,
+  Receipt,
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -26,6 +29,7 @@ interface AdminPanelProps {
   seats: Seat[];
   inventory: SeatInventory;
   ticketPrice: number;
+  reservations: Reservation[];
   onUpdateTicketPrice: (newPrice: number) => void;
   onUpdateSeatStatus: (seatId: string, newStatus: SeatStatus) => void;
   onBatchUpdateRow: (row: string, newStatus: SeatStatus) => void;
@@ -42,6 +46,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   seats,
   inventory,
   ticketPrice,
+  reservations,
   onUpdateTicketPrice,
   onUpdateSeatStatus,
   onBatchUpdateRow,
@@ -55,36 +60,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedSection, setSelectedSection] = useState<string>('balcon3');
   const [seatSearch, setSeatSearch] = useState<string>('');
 
+  const now = Date.now();
+
   // Estadísticas en tiempo real
   const stats = React.useMemo(() => {
     let disponible = 0;
     let seleccionado = 0;
+    let reservado = 0;
     let ocupado = 0;
     let bloqueado = 0;
 
     seats.forEach((seat) => {
-      const st = inventory[seat.id] || (seat.defaultBlocked ? 'bloqueado' : 'disponible');
+      const st = inventory[seat.id]?.status || (seat.defaultBlocked ? 'bloqueado' : 'disponible');
       if (st === 'disponible') disponible++;
       else if (st === 'seleccionado') seleccionado++;
+      else if (st === 'reservado') reservado++;
       else if (st === 'ocupado') ocupado++;
       else if (st === 'bloqueado') bloqueado++;
     });
 
     const total = seats.length;
     const revenue = ocupado * ticketPrice;
-    const potentialRevenue = (disponible + ocupado + seleccionado) * ticketPrice;
+    const potentialRevenue = (disponible + ocupado + reservado + seleccionado) * ticketPrice;
+
+    const activeReservations = reservations.filter(
+      (r) =>
+        r.presentationId === currentPresentation.id &&
+        (r.status === 'pendiente' || r.status === 'confirmada')
+    );
+    const expiring = activeReservations.filter(
+      (r) => r.status === 'pendiente' && r.expiresAtMs - now < 6 * 60 * 60 * 1000 && r.expiresAtMs > now
+    );
 
     return {
       total,
       disponible,
       seleccionado,
+      reservado,
       ocupado,
       bloqueado,
       revenue,
       potentialRevenue,
-      occupancyRate: total > 0 ? Math.round((ocupado / (total - bloqueado)) * 100) : 0,
+      occupancyRate: total > 0 ? Math.round(((ocupado + reservado) / (total - bloqueado)) * 100) : 0,
+      activeReservations: activeReservations.length,
+      expiringReservations: expiring.length,
     };
-  }, [seats, inventory, ticketPrice]);
+  }, [seats, inventory, ticketPrice, reservations, currentPresentation.id]);
 
   const handlePriceSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,7 +189,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       {/* Real-time KPI Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {/* Total Seats */}
         <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-3">
           <div className="text-[10px] uppercase font-bold text-slate-400">Total Asientos</div>
@@ -176,27 +197,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="text-[10px] text-slate-500">Capacidad Total</div>
         </div>
 
-        {/* Disponibles (Verde) */}
+        {/* Disponibles */}
         <div className="bg-slate-800/80 border border-emerald-900/50 rounded-2xl p-3">
           <div className="text-[10px] uppercase font-bold text-emerald-400 flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             Disponibles
           </div>
           <div className="text-xl font-black text-emerald-300 mt-0.5">{stats.disponible}</div>
-          <div className="text-[10px] text-emerald-600">Listos para compra</div>
+          <div className="text-[10px] text-emerald-600">Listos para reserva</div>
         </div>
 
-        {/* Ocupados / Pagados (Rojo) */}
+        {/* Reservados (Morado) */}
+        <div className="bg-slate-800/80 border border-purple-900/50 rounded-2xl p-3">
+          <div className="text-[10px] uppercase font-bold text-purple-400 flex items-center gap-1">
+            <Hourglass className="w-3 h-3" />
+            Reservados
+          </div>
+          <div className="text-xl font-black text-purple-300 mt-0.5">{stats.reservado}</div>
+          <div className="text-[10px] text-purple-500">Consignación pendiente</div>
+        </div>
+
+        {/* Ocupados (Rojo) */}
         <div className="bg-slate-800/80 border border-rose-900/50 rounded-2xl p-3">
           <div className="text-[10px] uppercase font-bold text-rose-400 flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-rose-500" />
-            Vendidos/Pagados
+            Vendidos
           </div>
           <div className="text-xl font-black text-rose-300 mt-0.5">{stats.ocupado}</div>
           <div className="text-[10px] text-rose-600">{stats.occupancyRate}% ocupación</div>
         </div>
 
-        {/* Bloqueados (Gris) */}
+        {/* Bloqueados */}
         <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-3">
           <div className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-stone-500" />
@@ -206,14 +237,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="text-[10px] text-stone-500">Palcos y Fila A-B</div>
         </div>
 
-        {/* Recaudo Actual */}
-        <div className="bg-slate-800/80 border border-amber-900/50 rounded-2xl p-3 col-span-2 sm:col-span-1 lg:col-span-2">
-          <div className="text-[10px] uppercase font-bold text-amber-400">Recaudo Confirmado</div>
-          <div className="text-xl font-black text-amber-300 mt-0.5 font-mono">
+        {/* Reservas activas */}
+        <div className="bg-slate-800/80 border border-sky-900/50 rounded-2xl p-3">
+          <div className="text-[10px] uppercase font-bold text-sky-400 flex items-center gap-1">
+            <Receipt className="w-3 h-3" />
+            Reservas activas
+          </div>
+          <div className="text-xl font-black text-sky-300 mt-0.5">{stats.activeReservations}</div>
+          <div className="text-[10px] text-sky-500">Pendientes + confirmadas</div>
+        </div>
+
+        {/* Recaudo */}
+        <div className="bg-slate-800/80 border border-amber-900/50 rounded-2xl p-3 col-span-2 sm:col-span-1 lg:col-span-1">
+          <div className="text-[10px] uppercase font-bold text-amber-400">Recaudo</div>
+          <div className="text-xl font-black text-amber-300 mt-0.5 font-mono leading-tight">
             {formatCOP(stats.revenue)}
           </div>
           <div className="text-[10px] text-slate-400">
-            Potencial total: {formatCOP(stats.potentialRevenue)}
+            Potencial: {formatCOP(stats.potentialRevenue)}
           </div>
         </div>
       </div>
@@ -328,6 +369,69 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </div>
 
+      {/* Reservas pendientes de la presentación actual */}
+      {(() => {
+        const currentReservations = reservations
+          .filter(
+            (r) =>
+              r.presentationId === currentPresentation.id &&
+              (r.status === 'pendiente' || r.status === 'confirmada')
+          )
+          .sort((a, b) => a.expiresAtMs - b.expiresAtMs);
+        if (currentReservations.length === 0) return null;
+        return (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-purple-400" />
+              <h3 className="font-bold text-sm text-white">
+                Reservas de Consignación ({currentReservations.length})
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-44 overflow-y-auto pr-1">
+              {currentReservations.map((r) => {
+                const expired = r.expiresAtMs <= now && r.status === 'pendiente';
+                const remaining = formatRemaining(r.expiresAtMs, now);
+                return (
+                  <div
+                    key={r.id}
+                    className={`rounded-xl p-2.5 border text-xs ${
+                      r.status === 'confirmada'
+                        ? 'bg-emerald-950/40 border-emerald-700/50'
+                        : expired
+                        ? 'bg-rose-950/40 border-rose-700/50'
+                        : 'bg-slate-900/90 border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono text-[10px] font-bold text-white">
+                        {r.paymentReference}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          r.status === 'confirmada'
+                            ? 'bg-emerald-900/60 text-emerald-300'
+                            : expired
+                            ? 'bg-rose-900/60 text-rose-300'
+                            : 'bg-purple-900/60 text-purple-300'
+                        }`}
+                      >
+                        {r.status === 'confirmada' ? '✓ Pagado' : expired ? 'Expirada' : remaining}
+                      </span>
+                    </div>
+                    <div className="text-slate-300 text-[11px] font-medium truncate">
+                      {r.customer.fullName}
+                    </div>
+                    <div className="text-slate-500 text-[10px] font-mono">
+                      {r.seats.length} asiento{r.seats.length === 1 ? '' : 's'} · {formatCOP(r.totalAmount)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Manual Seat Inspector / Status Switcher */}
       <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -377,13 +481,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
                         : currentStatus === 'seleccionado'
                         ? 'bg-amber-950 text-amber-300 border-amber-700'
+                        : currentStatus === 'reservado'
+                        ? 'bg-purple-950 text-purple-300 border-purple-700'
                         : currentStatus === 'ocupado'
                         ? 'bg-rose-950 text-rose-300 border-rose-700'
                         : 'bg-stone-800 text-stone-300 border-stone-600'
                     }`}
                   >
                     <option value="disponible">Disponible (Verde)</option>
-                    <option value="ocupado">Vendido (Rojo)</option>
+                    <option value="reservado">Reservado (Morado)</option>
+                    <option value="ocupado">Ocupado (Rojo)</option>
                     <option value="bloqueado">Bloqueado (Gris)</option>
                   </select>
                 </div>

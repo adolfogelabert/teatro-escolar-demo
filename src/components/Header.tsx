@@ -1,7 +1,7 @@
 import React from 'react';
 import { Presentation, PresentationId } from '../types';
 import { formatCOP } from '../data/theaterData';
-import { Sparkles, Calendar, Clock, GraduationCap, ShieldCheck, Ticket, Settings, Info } from 'lucide-react';
+import { Sparkles, Calendar, Clock, GraduationCap, Building2, Ticket, Settings, Info } from 'lucide-react';
 
 interface HeaderProps {
   presentations: Presentation[];
@@ -42,8 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Pago Seguro Davivienda</span>
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Reserva por Consignación Bancaria</span>
             </div>
             <button
               onClick={onOpenInfo}

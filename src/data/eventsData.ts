@@ -1,4 +1,4 @@
-import { Presentation, PresentationId, SeatInventory } from '../types';
+import { Presentation, PresentationId, SeatInventory, SeatInventoryEntry } from '../types';
 import { generateTheaterSeats } from './theaterData';
 
 export const PRESENTATIONS: Presentation[] = [
@@ -41,10 +41,8 @@ export const PRESENTATIONS: Presentation[] = [
 ];
 
 /**
- * Inicializa el inventario para una presentación:
- * - Palcos y dos primeras filas (A y B de Platea Central) -> 'bloqueado'
- * - Algunos asientos de demostración ocupados/pagados para realismo inicial
- * - El resto -> 'disponible'
+ * Inicializa el inventario para una presentación con el nuevo formato
+ * (incluye timestamp de expiración cuando el asiento está reservado).
  */
 export function createInitialInventory(presentationId: PresentationId, unitPrice?: number): SeatInventory {
   const allSeats = generateTheaterSeats(unitPrice);
@@ -54,31 +52,56 @@ export function createInitialInventory(presentationId: PresentationId, unitPrice
   const seedMultiplier = presentationId === 'preescolar' ? 3 : presentationId === 'primaria' ? 7 : 11;
 
   allSeats.forEach((seat, index) => {
-    // 1. Regla Mandatoria: Palcos y 2 primeras filas de Platea bloqueados
     if (seat.defaultBlocked) {
-      inventory[seat.id] = 'bloqueado';
+      inventory[seat.id] = { status: 'bloqueado' };
       return;
     }
 
-    // 2. Asientos ocupados / pagados previamente para enriquecer la demo
-    // Unos cuantos asientos en Platea C, D, E o Balcón 1 ocupados
     const isInitiallySold = (index * seedMultiplier + 13) % 23 === 0;
-
-    if (isInitiallySold) {
-      inventory[seat.id] = 'ocupado';
-    } else {
-      inventory[seat.id] = 'disponible';
-    }
+    inventory[seat.id] = {
+      status: isInitiallySold ? 'ocupado' : 'disponible',
+    };
   });
 
   return inventory;
 }
 
-/**
- * Carga o inicializa los inventarios de todas las presentaciones desde localStorage
- */
 export const STORAGE_KEY_PREFIX = 'teatro_escolar_asientos_v1_';
 export const STORAGE_PRICE_KEY = 'teatro_escolar_precio_boleta';
+
+/**
+ * Convierte el formato legacy (sólo status como string) al nuevo formato
+ * (objeto con status y campos opcionales). Necesario para migrar usuarios
+ * que ya tenían datos guardados antes de la actualización.
+ */
+function migrateLegacySeatValue(raw: unknown): SeatInventoryEntry {
+  if (typeof raw === 'string') {
+    if (raw === 'disponible' || raw === 'seleccionado' || raw === 'reservado' ||
+        raw === 'ocupado' || raw === 'bloqueado') {
+      return { status: raw };
+    }
+    return { status: 'disponible' };
+  }
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Partial<SeatInventoryEntry>;
+    const status = obj.status ?? 'disponible';
+    return {
+      status,
+      reservationExpiresAt: obj.reservationExpiresAt,
+      reservationId: obj.reservationId,
+    };
+  }
+  return { status: 'disponible' };
+}
+
+function migrateInventory(raw: unknown): SeatInventory {
+  const result: SeatInventory = {};
+  if (!raw || typeof raw !== 'object') return result;
+  for (const [seatId, value] of Object.entries(raw as Record<string, unknown>)) {
+    result[seatId] = migrateLegacySeatValue(value);
+  }
+  return result;
+}
 
 export function loadInventories(unitPrice?: number): Record<PresentationId, SeatInventory> {
   const result: Record<PresentationId, SeatInventory> = {
@@ -91,7 +114,7 @@ export function loadInventories(unitPrice?: number): Record<PresentationId, Seat
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}${pres.id}`);
       if (saved) {
-        result[pres.id] = JSON.parse(saved);
+        result[pres.id] = migrateInventory(JSON.parse(saved));
       } else {
         const initial = createInitialInventory(pres.id, unitPrice);
         result[pres.id] = initial;

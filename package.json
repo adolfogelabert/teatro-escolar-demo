@@ -4,37 +4,34 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
-    "build:gh-pages": "cross-env VITE_BASE_URL=/teatro-escolar-demo/ vite build",
+    "dev": "node scripts/ensure-source-index.mjs && vite --port=3000 --host=0.0.0.0",
+    "dev:source": "node scripts/ensure-source-index.mjs",
+    "build": "node scripts/ensure-source-index.mjs && vite build",
+    "build:gh-pages": "node scripts/ensure-source-index.mjs && cross-env VITE_BASE_URL=/teatro-escolar-demo/ vite build",
+    "build:deploy-ftp": "node scripts/ensure-source-index.mjs && vite build && node scripts/copy-to-deploy-ftp.mjs",
+    "deploy:xampp": "node scripts/ensure-source-index.mjs && vite build && node scripts/sync-to-xampp.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
-    "@types/canvas-confetti": "^1.9.0",
-    "@types/qrcode": "^1.5.6",
-    "@vitejs/plugin-react": "^5.0.4",
     "canvas-confetti": "^1.9.4",
-    "dotenv": "^17.2.3",
-    "express": "^4.21.2",
     "lucide-react": "^0.546.0",
-    "motion": "^12.23.24",
     "qrcode": "^1.5.4",
     "react": "^19.0.1",
-    "react-dom": "^19.0.1",
-    "vite": "^6.2.3"
+    "react-dom": "^19.0.1"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.14.0",
+    "@types/qrcode": "^1.5.6",
+    "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.22.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3",
-    "@types/express": "^4.17.21"
+    "vite": "^6.2.3"
   }
 }

@@ -3,19 +3,19 @@
  * Teatro Escolar
  */
 
-export type SeatStatus = 'disponible' | 'seleccionado' | 'ocupado' | 'bloqueado';
+export type SeatStatus = 'disponible' | 'seleccionado' | 'reservado' | 'ocupado' | 'bloqueado';
 
 export type SectionType = 'platea' | 'balcon1' | 'balcon2' | 'balcon3' | 'palcos';
 
 export interface Seat {
-  id: string; // Identificador único: ej. "platea-C-112"
+  id: string;
   sectionId: SectionType;
   sectionName: string;
-  subSection?: string; // "Izquierda", "Centro", "Derecha", "Delantera", "Trasera"
+  subSection?: string;
   row: string;
   number: number;
   label: string;
-  defaultBlocked: boolean; // Palcos y dos primeras filas de Platea
+  defaultBlocked: boolean;
   price: number;
 }
 
@@ -34,11 +34,17 @@ export interface Presentation {
   description: string;
 }
 
-export type SeatInventory = Record<string, SeatStatus>;
+export interface SeatInventoryEntry {
+  status: SeatStatus;
+  reservationExpiresAt?: number; // epoch ms - solo para 'reservado'
+  reservationId?: string;
+}
+
+export type SeatInventory = Record<string, SeatInventoryEntry>;
 
 export type TheaterInventoryByPresentation = Record<PresentationId, SeatInventory>;
 
-export interface CustomerInfo {
+export interface ReservationCustomer {
   fullName: string;
   documentType: string;
   documentNumber: string;
@@ -46,17 +52,24 @@ export interface CustomerInfo {
   phone: string;
   studentName: string;
   studentGrade: string;
-  paymentMethod: 'pse' | 'tarjeta' | 'daviplata';
-  bankName?: string;
-  cardNumber?: string;
-  cardExpiry?: string;
-  cardCvv?: string;
 }
 
-export interface PurchaseReceipt {
-  transactionId: string;
-  authorizationCode: string;
-  date: string;
+export interface BankInstructions {
+  bankName: string;
+  accountHolder: string;
+  accountType: 'Ahorros' | 'Corriente';
+  accountNumber: string;
+  referencePrefix: string;
+  instructions: string;
+}
+
+export type ReservationStatus = 'pendiente' | 'confirmada' | 'expirada' | 'cancelada';
+
+export interface Reservation {
+  id: string;                 // RES-XXXXXX
+  createdAt: string;          // fecha visible
+  createdAtMs: number;        // epoch ms
+  expiresAtMs: number;        // epoch ms (createdAtMs + 48h)
   presentationId: PresentationId;
   presentationTitle: string;
   presentationDate: string;
@@ -64,18 +77,21 @@ export interface PurchaseReceipt {
   seats: Seat[];
   unitPrice: number;
   totalAmount: number;
-  customer: CustomerInfo;
-  paymentMethod: string;
-  status: 'Aprobada' | 'Rechazada';
-  qrCodeDataUrl?: string;
+  customer: ReservationCustomer;
+  status: ReservationStatus;
+  paymentReference: string;   // ej. RES-123456-PRI
+  qrPayload: string;
 }
 
 export interface AdminStats {
   totalSeats: number;
   availableSeats: number;
   selectedSeats: number;
+  reservedSeats: number;
   occupiedSeats: number;
   blockedSeats: number;
   totalRevenue: number;
   potentialRevenue: number;
+  activeReservations: number;
+  expiringReservations: number;
 }
