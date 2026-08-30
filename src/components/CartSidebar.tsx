@@ -1,6 +1,7 @@
 import React from 'react';
 import { Seat, Presentation } from '../types';
 import { formatCOP } from '../data/theaterData';
+import { Tooltip } from './Tooltip';
 import {
   ShoppingCart,
   Trash2,
@@ -44,8 +45,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               <ShoppingCart className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight flex items-center gap-1.5">
                 Reserva de Boletas
+                <Tooltip content="Aquí ves los asientos que seleccionaste. Puedes eliminar uno o ir directo a reservar y consignar el pago." position="bottom" />
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
                 {presentation.name} • {presentation.grades}
@@ -154,21 +156,24 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         </div>
 
         {/* CTA Button - Reservar */}
-        <button
-          id="btn-proceed-to-payment"
-          disabled={count === 0}
-          onClick={onProceedToPayment}
-          className={`w-full py-3 sm:py-3.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
-            count > 0
-              ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-indigo-500/25'
-              : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-          }`}
-        >
-          <Hourglass className="w-4 h-4" />
-          <span className="hidden sm:inline">Reservar y pagar por consignación</span>
-          <span className="sm:hidden">Reservar</span>
-          <ArrowRight className="w-4 h-4 ml-1" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            id="btn-proceed-to-payment"
+            disabled={count === 0}
+            onClick={onProceedToPayment}
+            className={`flex-1 py-3 sm:py-3.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
+              count > 0
+                ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-indigo-500/25'
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+            }`}
+          >
+            <Hourglass className="w-4 h-4" />
+            <span className="hidden sm:inline">Reservar y pagar por consignación</span>
+            <span className="sm:hidden">Reservar</span>
+            <ArrowRight className="w-4 h-4 ml-1" />
+          </button>
+          <Tooltip content="Al reservar, los asientos se bloquean por 48 horas. Recibirás instrucciones para consignar el pago en el Banco de los Andes." position="top" />
+        </div>
 
         <div className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
           <Mail className="w-3.5 h-3.5 text-indigo-500" />

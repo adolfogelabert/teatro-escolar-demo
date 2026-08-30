@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 @layer utilities {
   .seat-shadow-selected {
     box-shadow: 0 0 8px rgba(255, 235, 59, 0.85);

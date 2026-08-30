@@ -37,6 +37,9 @@ import { ReservationModal } from './components/ReservationModal';
 import { TicketReceiptModal } from './components/TicketReceiptModal';
 import { DashboardAdmin } from './components/DashboardAdmin';
 import { InfoModal } from './components/InfoModal';
+import { EventSlider } from './components/EventSlider';
+import { Tooltip } from './components/Tooltip';
+import { BackToTop } from './components/BackToTop';
 import {
   Sparkles,
   Calendar,
@@ -435,6 +438,7 @@ function AppContent() {
             onClose={() => setActiveView('home')}
           />
         </main>
+        <BackToTop />
       </div>
     );
   }
@@ -487,6 +491,14 @@ function AppContent() {
       </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
+        {/* Event Slider */}
+        <EventSlider
+          presentations={PRESENTATIONS}
+          ticketPrice={ticketPrice}
+          currentPresentationId={currentPresentationId}
+          onSelect={handleSelectPresentation}
+        />
+
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-black shrink-0">
@@ -500,6 +512,7 @@ function AppContent() {
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
                   {currentPresentation.name}
                 </span>
+                <Tooltip content="Esta es la presentación actualmente seleccionada. Cambia de presentación usando el slider o los botones de arriba." position="bottom" />
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 {currentPresentation.description}
@@ -726,6 +739,8 @@ function AppContent() {
         onClose={() => setIsInfoOpen(false)}
         ticketPrice={ticketPrice}
       />
+
+      <BackToTop />
     </div>
   );
 }

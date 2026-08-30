@@ -1,6 +1,7 @@
 import React from 'react';
 import { Presentation, PresentationId } from '../types';
 import { formatCOP } from '../data/theaterData';
+import { Tooltip } from './Tooltip';
 import { Sparkles, Calendar, Clock, GraduationCap, Building2, Ticket, Settings, Info } from 'lucide-react';
 
 interface HeaderProps {
@@ -48,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
               <Building2 className="w-3.5 h-3.5 shrink-0" />
               <span>Reserva por Consignación Bancaria</span>
+              <Tooltip content="Seleccionas asientes, recibes datos del banco, consignas y listo. Los asientos se liberan si no consignas en 48h." position="bottom" />
             </div>
             <div className="flex items-center gap-1 ml-auto">
               <button

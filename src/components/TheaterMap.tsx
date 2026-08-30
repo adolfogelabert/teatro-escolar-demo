@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Seat, SeatStatus, SectionType, SeatInventory } from '../types';
 import { formatCOP } from '../data/theaterData';
+import { Tooltip } from './Tooltip';
 import {
   ZoomIn,
   ZoomOut,
@@ -233,6 +234,9 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
           <span className="text-xs font-bold text-slate-500 mr-1 hidden md:inline-flex items-center gap-1">
             <Layers className="w-3.5 h-3.5 text-indigo-600" /> Zona:
           </span>
+          <Tooltip content="Filtra los asientos por zona del teatro. Selecciona una zona para ver solo esa sección del mapa." position="bottom">
+            <span className="mr-1" />
+          </Tooltip>
           <button
             id="filter-all"
             onClick={() => setActiveSectionFilter('all')}
@@ -303,6 +307,9 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
 
         {/* Zoom Controls */}
         <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full p-1 shadow-2xs sm:p-1">
+          <Tooltip content="Usa estos botones o el panel flotante (móvil) para acercar y alejar el mapa de asientos." position="bottom">
+            <span className="mr-1" />
+          </Tooltip>
           <button
             id="btn-zoom-out"
             onClick={() => setZoomLevel((prev) => Math.max(0.7, Number((prev - 0.15).toFixed(2))))}
@@ -347,6 +354,7 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
             <span className="text-slate-700">
               Disponible (<strong className="text-emerald-700 font-bold">{counts.disponible}</strong>)
             </span>
+            <Tooltip content="Asiento libre. Toca para seleccionarlo y agregarlo a tu reserva." position="top" />
           </div>
 
           {/* Seleccionado */}
@@ -360,6 +368,7 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
             <span className="text-slate-900 font-bold">
               Seleccionado (<strong className="text-amber-700 font-extrabold">{counts.seleccionado}</strong>)
             </span>
+            <Tooltip content="Asiento que seleccionaste. Aparece en tu carrito de reserva. Tócalo de nuevo para quitarlo." position="top" />
           </div>
 
           {/* Reservado (consignación pendiente) */}
@@ -373,6 +382,7 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
             <span className="text-slate-700">
               Reservado (<strong className="text-purple-700 font-bold">{counts.reservado}</strong>)
             </span>
+            <Tooltip content="Alguien lo reservó y tiene 48h para consignar el pago. Si no paga, vuelve a estar disponible." position="top" />
           </div>
 
           {/* Ocupado / Pagado */}
@@ -386,6 +396,7 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
             <span className="text-slate-700">
               Ocupado (<strong className="text-rose-700 font-bold">{counts.ocupado}</strong>)
             </span>
+            <Tooltip content="Asiento ya pagado y confirmado. No está disponible para reserva." position="top" />
           </div>
 
           {/* Bloqueado */}
@@ -399,6 +410,7 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
             <span className="text-slate-700">
               Bloqueado (<strong className="text-stone-700 font-bold">{counts.bloqueado}</strong>)
             </span>
+            <Tooltip content="Asiento bloqueado por protocolo escolar (palcos, filas A y B). No se puede vender." position="top" />
           </div>
         </div>
 
