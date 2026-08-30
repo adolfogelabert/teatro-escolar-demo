@@ -43,6 +43,8 @@ import {
   Settings,
   Hourglass,
   Building2,
+  ShoppingCart,
+  ArrowRight,
 } from 'lucide-react';
 
 const RESERVATION_CLEANUP_INTERVAL_MS = 15 * 1000;
@@ -468,7 +470,7 @@ export default function App() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+          <div className="lg:col-span-8 xl:col-span-9 space-y-4 pb-48 sm:pb-0">
             <TheaterMap
               seats={allSeats}
               seatStatusMap={currentInventory}
@@ -478,7 +480,7 @@ export default function App() {
             />
           </div>
 
-          <div className="lg:col-span-4 xl:col-span-3 sticky top-24">
+          <div className="hidden sm:block lg:col-span-4 xl:col-span-3 sticky top-24">
             <CartSidebar
               selectedSeats={selectedSeats}
               presentation={currentPresentation}
@@ -489,6 +491,35 @@ export default function App() {
             />
           </div>
         </div>
+
+        {/* Mobile sticky cart bar */}
+        {selectedSeats.length > 0 && (
+          <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-2xl px-4 py-3 safe-area-pb">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-300 text-indigo-800 flex items-center justify-center font-bold shrink-0">
+                  <ShoppingCart className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 truncate">
+                    {selectedSeats.length} {selectedSeats.length === 1 ? 'asiento' : 'asientos'}
+                  </div>
+                  <div className="text-[11px] font-black text-indigo-900">
+                    {formatCOP(selectedSeats.length * ticketPrice)}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsReservationOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-500/25 transition-all cursor-pointer flex items-center gap-2 shrink-0"
+              >
+                <Hourglass className="w-4 h-4" />
+                <span>Reservar</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="bg-slate-950 text-slate-300 mt-12 py-8 text-xs">

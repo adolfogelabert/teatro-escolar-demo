@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Seat, SeatStatus, SectionType, SeatInventory } from '../types';
 import { formatCOP } from '../data/theaterData';
 import {
@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Maximize2,
   Hourglass,
+  Move,
 } from 'lucide-react';
 
 interface TheaterMapProps {
@@ -31,7 +32,8 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
   ticketPrice,
 }) => {
   const [activeSectionFilter, setActiveSectionFilter] = useState<'all' | SectionType>('all');
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const [zoomLevel, setZoomLevel] = useState<number>(isMobile ? 1.3 : 1);
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -300,33 +302,33 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
         </div>
 
         {/* Zoom Controls */}
-        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full p-1 shadow-2xs">
+        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full p-1 shadow-2xs sm:p-1">
           <button
             id="btn-zoom-out"
             onClick={() => setZoomLevel((prev) => Math.max(0.7, Number((prev - 0.15).toFixed(2))))}
-            className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+            className="p-2 sm:p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer active:scale-90"
             title="Reducir zoom"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-5 h-5 sm:w-4 sm:h-4" />
           </button>
-          <span className="text-xs font-mono font-bold px-1 text-indigo-900 min-w-[42px] text-center">
+          <span className="text-xs sm:text-xs font-mono font-bold px-1.5 text-indigo-900 min-w-[48px] text-center">
             {Math.round(zoomLevel * 100)}%
           </span>
           <button
             id="btn-zoom-in"
-            onClick={() => setZoomLevel((prev) => Math.min(1.6, Number((prev + 0.15).toFixed(2))))}
-            className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+            onClick={() => setZoomLevel((prev) => Math.min(2, Number((prev + 0.15).toFixed(2))))}
+            className="p-2 sm:p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer active:scale-90"
             title="Aumentar zoom"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-5 h-5 sm:w-4 sm:h-4" />
           </button>
           <button
             id="btn-zoom-reset"
-            onClick={() => setZoomLevel(1)}
-            className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer border-l border-slate-200 ml-0.5"
+            onClick={() => setZoomLevel(isMobile ? 1.3 : 1)}
+            className="p-2 sm:p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer border-l border-slate-200 ml-0.5 active:scale-90"
             title="Restablecer tamaño"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>
@@ -412,6 +414,39 @@ export const TheaterMap: React.FC<TheaterMapProps> = ({
         ref={containerRef}
         className="p-4 sm:p-6 overflow-auto min-h-[560px] max-h-[720px] bg-slate-50/60 flex flex-col items-center relative"
       >
+        {/* Floating Mobile Zoom Controls */}
+        <div className="sm:hidden fixed bottom-4 right-4 z-40 flex flex-col items-center gap-2">
+          <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-2 shadow-xl flex flex-col items-center gap-1">
+            <button
+              onClick={() => setZoomLevel((prev) => Math.min(2, Number((prev + 0.2).toFixed(2))))}
+              className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer"
+              title="Acercar"
+            >
+              <ZoomIn className="w-5 h-5" />
+            </button>
+            <span className="text-[10px] font-mono font-bold text-indigo-900">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+            <button
+              onClick={() => setZoomLevel((prev) => Math.max(0.7, Number((prev - 0.2).toFixed(2))))}
+              className="w-11 h-11 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer"
+              title="Alejar"
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setZoomLevel(1.3)}
+              className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shadow-sm active:scale-90 transition-transform cursor-pointer mt-0.5"
+              title="Restablecer"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="bg-slate-900/80 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-1 rounded-full flex items-center gap-1">
+            <Move className="w-3 h-3" />
+            <span>Scroll para ver más</span>
+          </div>
+        </div>
         <div
           style={{
             transform: `scale(${zoomLevel})`,

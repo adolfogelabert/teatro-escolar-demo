@@ -4,6 +4,9 @@
   .seat-shadow-selected {
     box-shadow: 0 0 8px rgba(255, 235, 59, 0.85);
   }
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 .seat-transition {
