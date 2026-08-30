@@ -22,6 +22,15 @@
 
 ## 🧭 Principios de comportamiento del agente
 
+### 0. Idioma: Español OBLIGATORIO (CRÍTICO)
+
+- ✅ **TODAS las explicaciones, comentarios, respuestas y mensajes al usuario deben ser en español.**
+- ✅ Los nombres de variables, funciones y tipos pueden seguir en inglés (convención técnica), pero la comunicación con el usuario **siempre en español**.
+- ✅ Los mensajes de commit, logs y documentación **siempre en español técnico claro**.
+- ❌ **PROHIBIDO** responder en inglés al usuario bajo cualquier circunstancia.
+- ❌ **PROHIBIDO** usar texto en inglés en la UI visible al usuario (botones, mensajes, alertas, etc.).
+- ⚠️ Si el agente detecta que está respondiendo en inglés, **detenerse inmediatamente y reescribir la respuesta en español**.
+
 ### 1. Autonomía operativa (CRÍTICO)
 
 - ✅ **El agente debe ejecutar todos los cambios él mismo** usando las herramientas disponibles (`bash`, `edit`, `write`, `read`, etc.).
@@ -193,8 +202,9 @@ Si el agente encuentra alguno de estos casos, debe **registrar el motivo** y **p
 
 ## 🏷️ Versión de este documento
 
-- **Versión**: 1.0.0
+- **Versión**: 1.1.0
 - **Creado**: Cuando se consolidó el proyecto con `reserve-by-remittance` y se renombró a `teatro-escolar-demo`.
+- **Actualizado**: Agregada regla de idioma español obligatorio (sección 0).
 - **Mantenedor**: usuario del proyecto.
 
 ---
