@@ -10,6 +10,7 @@
     "build:gh-pages": "node scripts/ensure-source-index.mjs && cross-env VITE_BASE_URL=/teatro-escolar-demo/ vite build && node scripts/restore-source-index.mjs",
     "build:deploy-ftp": "node scripts/ensure-source-index.mjs && vite build && node scripts/copy-to-deploy-ftp.mjs && node scripts/restore-source-index.mjs",
     "deploy:xampp": "node scripts/ensure-source-index.mjs && vite build && node scripts/sync-to-xampp.mjs && node scripts/restore-source-index.mjs",
+    "deploy:gh-pages": "node scripts/deploy-gh-pages.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
