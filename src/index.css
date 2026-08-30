@@ -16,3 +16,63 @@ html {
 .seat-transition {
   transition: transform 0.12s ease-in-out, box-shadow 0.15s ease-in-out;
 }
+
+/* Print styles: align content upward, hide UI chrome, bigger QR */
+@media print {
+  @page {
+    margin: 10mm 8mm;
+    size: A4;
+  }
+
+  html, body {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide everything except the printable area */
+  body > *:not(#root) {
+    display: none !important;
+  }
+
+  /* Remove top spacing from the modal container */
+  .fixed.inset-0 {
+    position: static !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Remove rounded corners and shadows for clean print */
+  .bg-white.rounded-none\:sm\:rounded-3xl,
+  .bg-white.rounded-3xl {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Hide non-printable sections */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Align content upward by removing top padding/margin */
+  .print\:p-0 {
+    padding: 0 !important;
+  }
+
+  /* Ensure the printable area starts at top */
+  .p-5.sm\:p-6.space-y-6 {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  /* Make QR even bigger in print */
+  img[alt*="QR"] {
+    width: 110px !important;
+    height: 110px !important;
+  }
+}

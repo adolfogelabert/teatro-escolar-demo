@@ -40,6 +40,7 @@ import { InfoModal } from './components/InfoModal';
 import { EventSlider } from './components/EventSlider';
 import { Tooltip } from './components/Tooltip';
 import { BackToTop } from './components/BackToTop';
+import { QRVerifier } from './components/QRVerifier';
 import {
   Sparkles,
   Calendar,
@@ -58,7 +59,7 @@ const RESERVATION_CLEANUP_INTERVAL_MS = 15 * 1000;
 
 function AppContent() {
   const { user, isAuthenticated, logout, hasRole } = useAuth();
-  const [activeView, setActiveView] = useState<'home' | 'dashboard'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'dashboard' | 'verifier'>('home');
 
   // 1. Variable global de precio por boleta (modificable)
   const [ticketPrice, setTicketPrice] = useState<number>(() => {
@@ -388,6 +389,11 @@ function AppContent() {
     );
   }
 
+  // QR Verifier full-page view
+  if (activeView === 'verifier') {
+    return <QRVerifier onBack={() => setActiveView('home')} />;
+  }
+
   // Dashboard full-page view
   if (activeView === 'dashboard') {
     return (
@@ -641,6 +647,13 @@ function AppContent() {
                 className="hover:text-white transition-colors cursor-pointer"
               >
                 Guía de Uso
+              </button>
+              <span>•</span>
+              <button
+                onClick={() => setActiveView('verifier')}
+                className="hover:text-white transition-colors cursor-pointer"
+              >
+                Verificador QR
               </button>
               <span>•</span>
               <button

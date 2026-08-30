@@ -40,8 +40,8 @@ export const TicketReceiptModal: React.FC<TicketReceiptModalProps> = ({
   useEffect(() => {
     if (!reservation) return;
     QRCode.toDataURL(reservation.qrPayload, {
-      width: 200,
-      margin: 1,
+      width: 360,
+      margin: 2,
       color: {
         dark: '#0f172a',
         light: '#ffffff',
@@ -214,7 +214,7 @@ export const TicketReceiptModal: React.FC<TicketReceiptModalProps> = ({
         </div>
 
         {/* Printable Area */}
-        <div ref={printRef} className="p-5 sm:p-6 space-y-6 overflow-y-auto flex-1 overscroll-contain">
+        <div ref={printRef} className="p-5 sm:p-6 space-y-6 overflow-y-auto flex-1 overscroll-contain print:p-0 print:space-y-4">
           {/* Institution Header */}
           <div className="text-center border-b border-slate-200 pb-4">
             <div className="text-xs font-extrabold uppercase tracking-widest text-slate-500">
@@ -242,7 +242,7 @@ export const TicketReceiptModal: React.FC<TicketReceiptModalProps> = ({
           </div>
 
           {/* Datos para consignar */}
-          <section className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+          <section className="bg-amber-200 border-2 border-amber-400 rounded-2xl p-4 space-y-3">
             <h4 className="text-sm font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
               <Building2 className="w-4 h-4" />
               Datos para consignar el pago
@@ -330,10 +330,10 @@ export const TicketReceiptModal: React.FC<TicketReceiptModalProps> = ({
                       <img
                         src={qrDataUrl}
                         alt="Código QR de la reserva"
-                        className="w-12 h-12 rounded-lg border border-slate-200 shadow-2xs"
+                        className="w-20 h-20 rounded-lg border border-slate-200 shadow-2xs print:w-28 print:h-28"
                       />
                     ) : (
-                      <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center font-mono text-[8px]">
+                      <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center font-mono text-[8px] print:w-28 print:h-28">
                         QR
                       </div>
                     )}
