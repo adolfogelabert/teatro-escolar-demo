@@ -95,3 +95,20 @@ export interface AdminStats {
   activeReservations: number;
   expiringReservations: number;
 }
+
+export type UserRole = 'admin' | 'taquillero' | 'espectador';
+
+export interface User {
+  id: string;
+  email: string;
+  password: string;
+  fullName: string;
+  role: UserRole;
+  createdAt: string;
+  active: boolean;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}

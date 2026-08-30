@@ -12,6 +12,8 @@ interface HeaderProps {
   isAdminOpen: boolean;
   onToggleAdmin: () => void;
   onOpenInfo: () => void;
+  onGoToDashboard?: () => void;
+  userRole?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,6 +25,8 @@ export const Header: React.FC<HeaderProps> = ({
   isAdminOpen,
   onToggleAdmin,
   onOpenInfo,
+  onGoToDashboard,
+  userRole,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -55,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden md:inline">Guía</span>
               </button>
               <button
-                onClick={onToggleAdmin}
+                onClick={onGoToDashboard || onToggleAdmin}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-all cursor-pointer font-medium ${
                   isAdminOpen
                     ? 'bg-amber-400 text-slate-950 shadow-xs'

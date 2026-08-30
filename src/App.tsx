@@ -28,12 +28,14 @@ import {
   syncInventoryWithReservations,
   formatRemaining,
 } from './data/reservations';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LoginPage } from './components/LoginPage';
 import { Header } from './components/Header';
 import { TheaterMap } from './components/TheaterMap';
 import { CartSidebar } from './components/CartSidebar';
 import { ReservationModal } from './components/ReservationModal';
 import { TicketReceiptModal } from './components/TicketReceiptModal';
-import { AdminPanel } from './components/AdminPanel';
+import { DashboardAdmin } from './components/DashboardAdmin';
 import { InfoModal } from './components/InfoModal';
 import {
   Sparkles,
@@ -45,11 +47,16 @@ import {
   Building2,
   ShoppingCart,
   ArrowRight,
+  LogOut,
+  BarChart3,
 } from 'lucide-react';
 
 const RESERVATION_CLEANUP_INTERVAL_MS = 15 * 1000;
 
-export default function App() {
+function AppContent() {
+  const { user, isAuthenticated, logout, hasRole } = useAuth();
+  const [activeView, setActiveView] = useState<'home' | 'dashboard'>('home');
+
   // 1. Variable global de precio por boleta (modificable)
   const [ticketPrice, setTicketPrice] = useState<number>(() => {
     try {
@@ -367,22 +374,51 @@ export default function App() {
     );
   }, [reservations, currentPresentationId, now]);
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      <Header
-        presentations={PRESENTATIONS}
-        currentPresentation={currentPresentation}
-        onSelectPresentation={handleSelectPresentation}
-        ticketPrice={ticketPrice}
-        selectedCount={selectedSeats.length}
-        isAdminOpen={isAdminOpen}
-        onToggleAdmin={() => setIsAdminOpen(!isAdminOpen)}
-        onOpenInfo={() => setIsInfoOpen(true)}
+  // If not authenticated, show login
+  if (!isAuthenticated) {
+    return (
+      <LoginPage
+        onSkipLogin={() => {
+          // Allow public access without login
+        }}
       />
+    );
+  }
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
-        {isAdminOpen && (
-          <AdminPanel
+  // Dashboard full-page view
+  if (activeView === 'dashboard') {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900">
+        {/* Dashboard nav bar */}
+        <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white px-4 py-2 sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveView('home')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                ← Volver al Teatro
+              </button>
+              <span className="text-slate-600">|</span>
+              <span className="text-sm font-bold text-amber-400">Panel de Administración</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-slate-400">
+                {user?.fullName}
+                <span className="text-amber-400 ml-1 capitalize">({user?.role})</span>
+              </span>
+              <button
+                onClick={logout}
+                className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <DashboardAdmin
             presentations={PRESENTATIONS}
             currentPresentation={currentPresentation}
             onSelectPresentation={handleSelectPresentation}
@@ -396,10 +432,61 @@ export default function App() {
             onBatchUpdateSection={handleBatchUpdateSection}
             onResetPresentation={handleResetPresentation}
             onSimulateFullHouse={handleSimulateFullHouse}
-            onClose={() => setIsAdminOpen(false)}
+            onClose={() => setActiveView('home')}
           />
-        )}
+        </main>
+      </div>
+    );
+  }
 
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      <Header
+        presentations={PRESENTATIONS}
+        currentPresentation={currentPresentation}
+        onSelectPresentation={handleSelectPresentation}
+        ticketPrice={ticketPrice}
+        selectedCount={selectedSeats.length}
+        isAdminOpen={isAdminOpen}
+        onToggleAdmin={() => setIsAdminOpen(!isAdminOpen)}
+        onOpenInfo={() => setIsInfoOpen(true)}
+        onGoToDashboard={() => setActiveView('dashboard')}
+        userRole={user?.role}
+      />
+
+      {/* User bar */}
+      <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-1.5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between text-[11px]">
+          <div className="flex items-center gap-2 text-indigo-700">
+            <span className="font-semibold">Sesión:</span>
+            <span className="font-bold">{user?.fullName}</span>
+            <span className="text-indigo-400">•</span>
+            <span className="capitalize font-semibold text-indigo-500 bg-indigo-100 px-1.5 py-0.5 rounded-full text-[10px]">
+              {user?.role}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            {hasRole('admin', 'taquillero') && (
+              <button
+                onClick={() => setActiveView('dashboard')}
+                className="flex items-center gap-1 text-indigo-500 hover:text-indigo-700 font-semibold transition-colors cursor-pointer"
+              >
+                <BarChart3 className="w-3 h-3" />
+                <span>Dashboard</span>
+              </button>
+            )}
+            <button
+              onClick={logout}
+              className="flex items-center gap-1 text-indigo-500 hover:text-rose-600 font-semibold transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3 h-3" />
+              <span>Cerrar sesión</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-black shrink-0">
@@ -544,7 +631,7 @@ export default function App() {
               </button>
               <span>•</span>
               <button
-                onClick={() => setIsAdminOpen(!isAdminOpen)}
+                onClick={() => setActiveView('dashboard')}
                 className="hover:text-white transition-colors cursor-pointer"
               >
                 Taquilla Administrativa
@@ -640,5 +727,13 @@ export default function App() {
         ticketPrice={ticketPrice}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
