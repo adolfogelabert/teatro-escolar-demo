@@ -373,7 +373,7 @@ function AppContent() {
       (r) =>
         r.status === 'pendiente' &&
         r.presentationId === currentPresentationId &&
-        r.expiresAtMs - now < 6 * 60 * 60 * 1000 &&
+        r.expiresAtMs - now < 2 * 60 * 1000 &&
         r.expiresAtMs > now
     );
   }, [reservations, currentPresentationId, now]);

@@ -137,7 +137,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, ticketPri
               </li>
               <li>
                 <strong>Crea tu reserva</strong> con tus datos. Los asientos quedan
-                <span className="font-bold text-purple-700"> bloqueados (morado) por 48 horas</span>.
+                <span className="font-bold text-purple-700"> bloqueados (morado) por 15 minutos</span>.
               </li>
               <li>
                 <strong>Recibes un correo</strong> con el resumen, los datos para
@@ -152,7 +152,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, ticketPri
                 <span className="font-bold text-rose-700">Ocupado (rojo)</span>.
               </li>
               <li>
-                Si en 48 horas <strong>no se recibe confirmación</strong>, los
+                Si en 15 minutos <strong>no se recibe confirmación</strong>, los
                 asientos vuelven automáticamente a <em>Disponible</em>.
               </li>
             </ol>

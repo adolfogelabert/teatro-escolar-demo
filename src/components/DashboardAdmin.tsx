@@ -908,7 +908,7 @@ export const DashboardAdmin: React.FC<DashboardAdminProps> = ({
                   Los datos se persisten en el navegador.
                 </p>
                 <p className="text-xs text-slate-500">
-                  <strong>Reservas expiran:</strong> 48 horas (modo producción) / 45 segundos (modo demo).
+                  <strong>Reservas expiran:</strong> 15 minutos (modo producción) / 45 segundos (modo demo).
                 </p>
               </div>
             </div>

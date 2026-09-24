@@ -172,7 +172,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             <span className="sm:hidden">Reservar</span>
             <ArrowRight className="w-4 h-4 ml-1" />
           </button>
-          <Tooltip content="Al reservar, los asientos se bloquean por 48 horas. Recibirás instrucciones para consignar el pago en el Banco de los Andes." position="top" />
+          <Tooltip content="Al reservar, los asientos se bloquean por 15 minutos. Recibirás instrucciones para consignar el pago en el Banco de los Andes." position="top" />
         </div>
 
         <div className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
@@ -183,7 +183,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 flex items-start gap-1.5 text-[10px] text-amber-800 hidden sm:flex">
           <Building2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <span>
-            Tienes <strong>48 horas</strong> para consignar después de reservar.
+            Tienes <strong>15 minutos</strong> para consignar después de reservar.
             Pasado ese plazo los asientos vuelven a estar disponibles.
           </span>
         </div>

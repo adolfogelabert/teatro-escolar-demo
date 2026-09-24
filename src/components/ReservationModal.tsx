@@ -67,7 +67,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
     'Validando datos del cliente…',
     'Generando código único de reserva…',
     'Enviando correo con instrucciones de consignación…',
-    'Bloqueando los asientos por 48 horas…',
+    'Bloqueando los asientos por 15 minutos…',
   ];
 
   const reservationIdSample = `RES-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -157,9 +157,6 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
       // timestamp "real" (48h en el futuro) para que la lógica de expiración
       // siga siendo verificable en código.
       const now = Date.now();
-      const expiresAtMs = isDemoMode
-        ? now + 48 * 60 * 60 * 1000
-        : now + 48 * 60 * 60 * 1000;
 
       const reservation: Reservation = {
         id: `RES-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -170,7 +167,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
         createdAtMs: now,
         expiresAtMs: now + (isDemoMode
           ? 45 * 1000 // 45 segundos en modo demo rápido
-          : expiresAtMs - now),
+          : 15 * 60 * 1000), // 15 minutos en producción
         presentationId: presentation.id,
         presentationTitle: presentation.title,
         presentationDate: presentation.date,
@@ -237,7 +234,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-indigo-100">
-                Temporada de Teatro Escolar • Asientos asegurados por 48 horas
+                Temporada de Teatro Escolar • Asientos asegurados por 15 minutos
               </p>
             </div>
           </div>
@@ -248,7 +245,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
               Tiempo para confirmar el pago por consignación:
             </span>
             <span className="font-bold bg-black/20 px-2 py-0.5 rounded">
-              48 horas desde la reserva
+              15 minutos desde la reserva
             </span>
           </div>
         </div>
@@ -307,7 +304,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
               <ol className="text-xs text-slate-600 space-y-1.5 list-decimal pl-5 marker:font-bold">
                 <li>
                   <strong className="text-slate-800">Reservas tus asientos</strong> en este formulario y los
-                  bloqueamos por <strong>48 horas</strong>.
+                  bloqueamos por <strong>15 minutos</strong>.
                 </li>
                 <li>
                   <strong className="text-slate-800">Recibes un correo</strong> con el resumen de tu reserva
@@ -322,7 +319,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
                   confirmamos tu reserva cambiando el estado de los asientos a <em className="text-emerald-700">Vendido</em>.
                 </li>
                 <li>
-                  Si en 48 horas <strong className="text-slate-800">no se confirma el pago</strong>, los
+                  Si en 15 minutos <strong className="text-slate-800">no se confirma el pago</strong>, los
                   asientos vuelven a estar disponibles automáticamente.
                 </li>
               </ol>
@@ -331,7 +328,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   <span>
                     <strong>Modo demo:</strong> para esta prueba la reserva expira en <strong>45 segundos</strong>
-                    {' '}en lugar de 48 horas, con el fin de poder verificar visualmente la liberación automática de los asientos.
+                    {' '}en lugar de 15 minutos, con el fin de poder verificar visualmente la liberación automática de los asientos.
                   </span>
                 </p>
               )}
@@ -492,7 +489,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
                 className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer"
               />
               <span>
-                Acepto que la reserva tiene una validez de <strong>48 horas</strong>; si no se recibe
+                Acepto que la reserva tiene una validez de <strong>15 minutos</strong>; si no se recibe
                 confirmación de pago por consignación en ese plazo, los{' '}
                 {selectedSeats.length === 1 ? 'asiento será liberado' : 'asientos serán liberados'} automáticamente.
                 <strong className="text-slate-800"> Demo:</strong> el marcador expirará en segundos.
@@ -534,7 +531,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
                 Notificación por correo
               </span>
               <span className="text-slate-300">•</span>
-              <span>Reserva válida por 48 horas</span>
+              <span>Reserva válida por 15 minutos</span>
             </div>
           </div>
         )}

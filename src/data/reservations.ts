@@ -14,7 +14,7 @@ import {
  * Ventana de tiempo que el cliente tiene para confirmar su pago por consignación.
  * Pasado este plazo la reserva expira y los asientos vuelven a estar disponibles.
  */
-export const RESERVATION_DURATION_MS = 48 * 60 * 60 * 1000; // 48 horas
+export const RESERVATION_DURATION_MS = 15 * 60 * 1000; // 15 minutos
 
 /**
  * Instrucciones bancarias simuladas que se muestran al cliente al confirmar
@@ -29,7 +29,7 @@ export const BANK_INSTRUCTIONS: BankInstructions = {
   instructions:
     'Consignar el valor exacto en la cuenta indicada usando el código de referencia como concepto. ' +
     'Una vez realizada la consignación, enviar el comprobante al correo teatro@colegiomayor.edu.co ' +
-    'para confirmar la reserva antes de las 48 horas.',
+    'para confirmar la reserva antes de los 15 minutos.',
 };
 
 /**
